@@ -1,0 +1,20 @@
+/* Tailwind'in başlangıç direktifleri */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* AuthForm.jsx içindeki LeafSVG'nin kullandığı özel keyframe */
+@keyframes leaf-fall {
+  0% {
+    transform: translateY(-10vh) translateX(0) rotate(0deg);
+    opacity: 1;
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    /* JS'ten gelen --sway değişkenini kullanır */
+    transform: translateY(110vh) translateX(var(--sway, 6vw)) rotate(720deg);
+    opacity: 0.6;
+  }
+}
