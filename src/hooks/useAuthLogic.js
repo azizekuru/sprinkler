@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 
-export const useAuthLogic = (initialMode = "login") => {
+export const useAuthLogic = (initialMode = "home") => { // initialMode varsayılanı 'home' olarak ayarlandı
   const [mode, setMode] = useState(initialMode);
   const [message, setMessage] = useState("");
   const [errors, setErrors] = useState({});
@@ -32,6 +32,7 @@ export const useAuthLogic = (initialMode = "login") => {
     const newErrors = {};
     if (!form.email.trim()) newErrors.email = "Email adresi gereklidir.";
 
+    // Sadece login ve register modlarında şifre doğrulama
     if (mode === "login" || mode === "register") {
       if (!form.password.trim()) newErrors.password = "Şifre gereklidir.";
     }

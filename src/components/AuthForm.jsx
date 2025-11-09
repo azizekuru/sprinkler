@@ -1,11 +1,12 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import Login from "./Login";
 import Register from "./Register";
 import ForgotPassword from "./ForgotPassword";
+import Home from "./Home"; 
 import { useAuthLogic } from "../hooks/useAuthLogic"; 
 
-/* Leaf SVG component */
-const LeafSVG = ({ color, size, left, delay, duration, sway }) => {
+/* Leaf SVG component - Dışarı Aktarılıyor */
+export const LeafSVG = ({ color, size, left, delay, duration, sway }) => { 
   return (
     <svg
       className="drop-shadow-sm rounded-[12%_88%_88%_12%_/_50%_30%_70%_50%] opacity-95"
@@ -21,7 +22,7 @@ const LeafSVG = ({ color, size, left, delay, duration, sway }) => {
         animationDelay: `${delay}s`,
         animationDuration: `${duration}s`,
         animationTimingFunction: 'linear',
-        animationIterationCount: '1',
+        animationIterationCount: '1', // Düşen yaprağın kaybolmasını sağlar
         transformOrigin: "center",
         pointerEvents: "none",
         zIndex: 0,
@@ -34,22 +35,47 @@ const LeafSVG = ({ color, size, left, delay, duration, sway }) => {
 };
 
 export default function AuthForm() {
-  // Mantık ve state'ler artık useAuthLogic hook'undan geliyor
+  const [currentMode, setCurrentMode] = useState("home");
+  
   const {
     mode, message, errors, form, setAuthMode, change, handleSubmit, handleSendResetLink
-  } = useAuthLogic("login");
+  } = useAuthLogic(currentMode); 
 
-  // Yaprak animasyonu state ve mantığı burada kalır (UI'ya aittir)
+  // Change modes and update history so that browser back/forward only
+  // navigates between Home <-> Login and Home <-> Register.
+  const handleSetAuthMode = useCallback((newMode, replace = false) => {
+    // Decide whether to push a new history entry or replace the current one.
+    // We only push when coming from Home to Login/Register. All other
+    // intra-auth navigation should replace the current entry so the back
+    // button returns to Home rather than stepping through auth screens.
+    const shouldPush = !replace && currentMode === 'home' && (newMode === 'login' || newMode === 'register');
+
+    setCurrentMode(newMode);
+    setAuthMode(newMode);
+
+    try {
+      const hash = `#${newMode}`;
+      if (shouldPush) {
+        window.history.pushState({ authMode: newMode }, '', hash);
+      } else {
+        window.history.replaceState({ authMode: newMode }, '', hash);
+      }
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error('History API error', e);
+    }
+  }, [currentMode, setAuthMode]);
+
   const [leaves, setLeaves] = useState([]);
-  const leavesRef = useRef([]);
+  const nextIdRef = useRef(0); // ID'leri takip etmek için ref kullanıldı
 
   const leafColors = [
     "#D2691E", "#FF8C00", "#DAA520", "#CD853F", "#8B4513", "#FF6347"
   ];
 
-  const createLeafObj = (id) => {
+  const createLeafObj = () => {
+    const id = nextIdRef.current++;
     const color = leafColors[Math.floor(Math.random() * leafColors.length)];
-    //const size = 20 + Math.random() * 20;
     const size = 40 + Math.random() * 40; 
     const left = Math.random() * 100;
     const delay = Math.random() * 2;
@@ -59,46 +85,138 @@ export default function AuthForm() {
   };
 
   useEffect(() => {
-    const initial = Array.from({ length: 20 }, (_, i) => createLeafObj(i));
+    // Başlangıçta 20 yaprak oluştur
+    const initial = Array.from({ length: 20 }, () => createLeafObj());
     setLeaves(initial);
-    leavesRef.current = initial;
 
-    let nextId = 20;
-    const interval = setInterval(() => {
-      const newBatch = Array.from({ length: 3 }, () => createLeafObj(nextId++));
-      leavesRef.current = [...leavesRef.current, ...newBatch].slice(-200);
-      setLeaves(leavesRef.current);
-      setTimeout(() => {
-        leavesRef.current = leavesRef.current.slice(newBatch.length);
-        setLeaves(leavesRef.current);
-      }, 14000);
+    // Yeni yapraklar eklemek için periyodik aralık
+    const addInterval = setInterval(() => {
+      // Rastgele 1 ila 3 yeni yaprak ekle
+      const newBatch = Array.from({ length: 1 + Math.floor(Math.random() * 3) }, () => createLeafObj());
+      
+      setLeaves(prevLeaves => [...prevLeaves, ...newBatch]);
     }, 2000);
 
-    return () => clearInterval(interval);
+    // Kaybolan yaprakları kaldırmak için periyodik aralık
+    const cleanupInterval = setInterval(() => {
+        // Belirli bir süreden (örneğin 14 saniye, en uzun animasyon süresi 12 saniye olduğu için) 
+        // daha uzun süredir var olan yaprakları temizle. Basitlik için sadece 
+        // listenin başından 30 yaprağı kaldırıyoruz.
+        setLeaves(prevLeaves => prevLeaves.slice(3)); 
+    }, 14000); 
+
+    return () => {
+      clearInterval(addInterval);
+      clearInterval(cleanupInterval);
+    };
   }, []);
+
+  // Initialize current mode from the URL hash or history state and
+  // listen to popstate so browser back/forward changes the UI.
+  useEffect(() => {
+    const deriveModeFromLocation = () => {
+      const stateMode = window.history.state && window.history.state.authMode;
+      if (stateMode) return stateMode;
+      const hash = (window.location.hash || '').replace('#', '');
+      return hash || 'home';
+    };
+
+    const initialMode = deriveModeFromLocation();
+    setCurrentMode(initialMode);
+    setAuthMode(initialMode);
+    try {
+      const hash = `#${initialMode}`;
+      window.history.replaceState({ authMode: initialMode }, '', hash);
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error('History API replaceState failed', e);
+    }
+
+    const onPopState = (ev) => {
+      const modeFromState = ev.state && ev.state.authMode;
+      const mode = modeFromState || (window.location.hash || '').replace('#', '') || 'home';
+      setCurrentMode(mode);
+      setAuthMode(mode);
+    };
+
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, [setAuthMode]);
+
+  // Başlık metinlerini mode'a göre ayarlayan yardımcı fonksiyon
+  const getHeader = () => {
+    switch (mode) {
+      case "login":
+        return { h2: "Welcome Back", p: "Sign in to your account" };
+      case "register":
+        return { h2: "Create Account", p: "Sign up for a new account" };
+      default: 
+        return { h2: null, p: null };
+    }
+  };
+  const header = getHeader();
+
 
   const renderAuthComponent = () => {
     switch (mode) {
+      case "home":
+        return <Home setAuthMode={handleSetAuthMode} />; 
       case "login":
         return (
-          <Login
-            message={message}
-            errors={errors}
-            form={form}
-            change={change}
-            handleSubmit={handleSubmit}
-            setAuthMode={setAuthMode}
-          />
+          <>
+            {/* Card Header */}
+            <div className="text-center">
+              <h2 className="mt-0 mb-1.5 text-lg font-medium text-gray-900">{header.h2}</h2>
+              <p className="mb-4 text-sm text-gray-500">{header.p}</p>
+            </div>
+            <Login
+              message={message}
+              errors={errors}
+              form={form}
+              change={change}
+              handleSubmit={handleSubmit}
+              setAuthMode={handleSetAuthMode}
+            />
+            {/* Switch Line */}
+            <p className="mt-3 text-sm text-center text-gray-700">
+              Don't have an account?{" "}
+              <button
+                type="button"
+                className="bg-transparent border-none text-gray-900 font-semibold cursor-pointer p-0"
+                onClick={() => handleSetAuthMode("register")}
+              >
+                Sign Up
+              </button>
+            </p>
+          </>
         );
       case "register":
         return (
-          <Register
-            message={message}
-            errors={errors}
-            form={form}
-            change={change}
-            handleSubmit={handleSubmit}
-          />
+          <>
+             {/* Card Header */}
+             <div className="text-center">
+              <h2 className="mt-0 mb-1.5 text-lg font-medium text-gray-900">{header.h2}</h2>
+              <p className="mb-4 text-sm text-gray-500">{header.p}</p>
+            </div>
+            <Register
+              message={message}
+              errors={errors}
+              form={form}
+              change={change}
+              handleSubmit={handleSubmit}
+            />
+             {/* Switch Line */}
+            <p className="mt-3 text-sm text-center text-gray-700">
+              Already have an account?{" "}
+              <button
+                type="button"
+                className="bg-transparent border-none text-gray-900 font-semibold cursor-pointer p-0"
+                onClick={() => handleSetAuthMode("login")}
+              >
+                Log In
+              </button>
+            </p>
+          </>
         );
       case "forgotPassword":
         return (
@@ -108,7 +226,7 @@ export default function AuthForm() {
             form={form}
             change={change}
             handleSendResetLink={handleSendResetLink}
-            setAuthMode={setAuthMode}
+            setAuthMode={handleSetAuthMode}
           />
         );
       default:
@@ -116,30 +234,7 @@ export default function AuthForm() {
     }
   };
 
-  // Başlık metinlerini mode'a göre ayarlayan yardımcı fonksiyon
-  const getHeader = () => {
-    switch (mode) {
-      case "login":
-        return { h2: "Welcome Back", p: "Sign in to your account" };
-      case "register":
-        return { h2: "Create Account", p: "Sign up for a new account" };
-      default: // forgotPassword için başlık ForgotPassword.jsx'in içinde
-        return { h2: null, p: null };
-    }
-  };
-  const header = getHeader();
-
-  // Switch butonu metinlerini mode'a göre ayarlayan yardımcı fonksiyon
-  const getSwitchProps = () => {
-    if (mode === "login") {
-      return { text: "Don't have an account?", button: "Sign Up", newMode: "register" };
-    } else if (mode === "register") {
-      return { text: "Already have an account?", button: "Log In", newMode: "login" };
-    }
-    return null; // forgotPassword için switch butonu ForgotPassword.jsx'in içinde
-  };
-  const switchProps = getSwitchProps();
-
+  // AuthForm'un temel yapısı
   return (
     // auth-bg
     <div className="relative w-full min-h-screen flex items-center justify-center overflow-hidden bg-gradient-to-b from-amber-50 to-orange-50 font-sans text-base">
@@ -159,34 +254,14 @@ export default function AuthForm() {
         ))}
       </div>
 
-      {/* auth-card */}
-      <div className="relative z-10 w-full max-w-md bg-white rounded-xl border border-gray-200 p-6 shadow-xl max-sm:m-4 max-sm:w-[calc(100%-32px)]">
-
-        {/* Card Header (Login & Register için) */}
-        {header.h2 && (
-          <div className="text-center">
-            <h2 className="mt-0 mb-1.5 text-lg font-medium text-gray-900">{header.h2}</h2>
-            <p className="mb-4 text-sm text-gray-500">{header.p}</p>
-          </div>
-        )}
-
-        {/* Dinamik Form Bileşeni */}
-        {renderAuthComponent()}
-
-        {/* Switch Line (Login & Register için) */}
-        {switchProps && (
-          <p className="mt-3 text-sm text-center text-gray-700">
-            {switchProps.text}{" "}
-            <button
-              type="button"
-              className="bg-transparent border-none text-gray-900 font-semibold cursor-pointer p-0"
-              onClick={() => setAuthMode(switchProps.newMode)}
-            >
-              {switchProps.button}
-            </button>
-          </p>
-        )}
-      </div>
+      {/* auth-card - Sadece Auth modlarında kart gösterilir, Home modunda içerik ortalanır. */}
+      {mode !== "home" ? (
+        <div className="relative z-10 w-full max-w-md bg-white rounded-xl border border-gray-200 p-6 shadow-xl max-sm:m-4 max-sm:w-[calc(100%-32px)]">
+          {renderAuthComponent()}
+        </div>
+      ) : (
+        renderAuthComponent()
+      )}
     </div>
   );
 }
