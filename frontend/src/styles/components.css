@@ -1,0 +1,68 @@
+/* Kart Stilleri */
+.card {
+  @apply bg-white rounded-xl shadow-sm border border-gray-100;
+}
+
+.card-hover {
+  @apply transition-all hover:shadow-md;
+}
+
+/* Buton Stilleri */
+.btn-primary {
+  @apply bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition font-semibold;
+}
+
+.btn-secondary {
+  @apply bg-white text-gray-700 px-4 py-2 rounded-lg border border-gray-300 hover:bg-gray-50 transition font-semibold;
+}
+
+.btn-danger {
+  @apply bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition font-semibold;
+}
+
+/* İstatistik Kutuları */
+.stat-box {
+  @apply rounded-xl p-4 text-center;
+}
+
+.stat-box-green {
+  @apply stat-box bg-green-50;
+}
+
+.stat-box-orange {
+  @apply stat-box bg-orange-50;
+}
+
+.stat-box-red {
+  @apply stat-box bg-red-50;
+}
+
+/* Modal Stilleri */
+.modal-overlay {
+  @apply fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4;
+}
+
+.modal-content {
+  @apply bg-white rounded-2xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto;
+}
+
+/* Badge Stilleri */
+.badge {
+  @apply px-3 py-1 rounded-full text-xs font-semibold;
+}
+
+.badge-success {
+  @apply badge bg-green-100 text-green-700;
+}
+
+.badge-warning {
+  @apply badge bg-orange-100 text-orange-700;
+}
+
+.badge-danger {
+  @apply badge bg-red-100 text-red-700;
+}
+
+.badge-info {
+  @apply badge bg-blue-100 text-blue-700;
+}

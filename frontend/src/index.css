@@ -1,0 +1,24 @@
+/* Tailwind'in başlangıç direktifleri */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Global Stiller */
+@import './styles/globals.css';
+@import './styles/components.css';
+@import './styles/animations.css';
+
+/* AuthForm.jsx içindeki LeafSVG'nin kullandığı özel keyframe */
+@keyframes leaf-fall {
+  0% {
+    transform: translateY(-10vh) translateX(0) rotate(0deg);
+    opacity: 1;
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(110vh) translateX(var(--sway, 6vw)) rotate(720deg);
+    opacity: 0.6;
+  }
+}

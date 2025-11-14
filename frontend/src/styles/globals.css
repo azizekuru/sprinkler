@@ -1,0 +1,40 @@
+/* Genel Sayfa Stilleri */
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Varsayılan üst nav yüksekliği: BottomNav artık üstte sabitlenince içeriğin
+   nav ile çakışmasını önlemek için global padding-top eklenir. */
+:root { --top-nav-height: 64px; }
+body { padding-top: calc(var(--top-nav-height) + env(safe-area-inset-top, 0)); }
+
+/* Scrollbar Stilleri */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #ea580c;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #c2410c;
+}
+
+/* Custom Focus Stilleri */
+*:focus {
+  outline: none;
+}
+
+*:focus-visible {
+  outline: 2px solid #ea580c;
+  outline-offset: 2px;
+}
